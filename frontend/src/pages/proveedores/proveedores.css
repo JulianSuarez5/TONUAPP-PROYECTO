@@ -1,0 +1,69 @@
+/* Modulo Proveedores (RF-010 / D-01, D-14). Reutiliza la base de Materiales
+   (materiales.css: botones, cabecera, tabla, paginacion, modal, formulario) y
+   define solo lo especifico del modulo. Reglas de color vigentes (D-25) intactas:
+   naranja solo CTA, teal solo accentos de cabecera/hero/focus. Los estilos
+   compartidos de .app/header viven en materiales.css (importado aqui). */
+@import url('../materiales/materiales.css');
+
+/* ---- Gestor de materiales del proveedor ---- */
+
+.proveedores__admitir {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  align-items: end;
+  gap: 12px;
+  margin: 18px 0 22px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+}
+
+.proveedores__lista-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.proveedores__lista-num {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+}
+
+/* Boton de "principal": circulo + etiqueta cuando está activo (teal) */
+.proveedores__principal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  background: none;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  transition: border-color var(--transition-fast), color var(--transition-fast),
+    background var(--transition-fast), transform 120ms var(--ease-out);
+}
+
+.proveedores__principal:hover {
+  border-color: var(--color-accent-2);
+  color: var(--color-accent-2);
+}
+
+.proveedores__principal:active {
+  transform: scale(0.96);
+}
+
+.proveedores__principal--si {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: rgba(15, 118, 110, 0.07);
+  color: var(--color-accent-2);
+}
+
+@media (max-width: 767px) {
+  .proveedores__admitir {
+    grid-template-columns: 1fr;
+  }
+}

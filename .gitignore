@@ -1,0 +1,41 @@
+# === Java / Maven ===
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# === Node / Frontend ===
+node_modules/
+dist/
+build/
+
+# === Credenciales locales (NUNCA se commitean) ===
+backend/src/main/resources/application-local.yml
+application-local.yml
+
+# === Logs / OS ===
+*.log
+.DS_Store
+Thumbs.db
+
+# === Configs y skills de herramientas locales (no son código del proyecto) ===
+.opencode/
+frontend/.agents/
+frontend/.claude/
+frontend/.codex/
+frontend/.junie/
+frontend/.opencode/
+frontend/skills-lock.json
+
+# === Respaldos y artefactos generados ===
+.backup-*/
+reportes/

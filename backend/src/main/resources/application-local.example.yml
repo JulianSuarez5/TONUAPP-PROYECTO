@@ -1,0 +1,46 @@
+# =====================================================================================
+# TONUAPP Backend - Plantilla de configuracion local (EJEMPLO)
+#
+# NO edites este archivo como si fuera el real: es la plantilla que se versiona como
+# ejemplo. En tu maquina crea TU PROPIO archivo `application-local.yml` copiando este,
+# completa tus credenciales y NO lo subas a git (ya esta en .gitignore).
+#
+# Para activar este perfil al arrancar:
+#   java -jar tonuapp-backend.jar --spring.profiles.active=local
+#   (o en IDE: VM argument  -Dspring.profiles.active=local)
+# =====================================================================================
+
+spring:
+  datasource:
+    # Puerto de SQLEXPRESS (por defecto 1433). Ajusta si tu instancia usa otro.
+    url: jdbc:sqlserver://localhost:1433;encrypt=true;trustServerCertificate=true;databaseName=tonuapp
+    username: tonuapp_app
+    # Reemplaza por la contrasena real del login tonuapp_app que creaste.
+    # Alternativa mas segura: dejar esto fuera y usar la variable de entorno TONUAPP_DB_PASSWORD.
+    password: TU_CONTRASENA_AQUI
+
+# Clave de firma JWT (decision D-10). Genera una con al menos 32 bytes / 256 bits, p.ej.:
+#   openssl rand -hex 32
+# o en PowerShell:  -join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
+# Alternativa: usar la variable de entorno TONUAPP_JWT_SECRET y omitir esta seccion.
+tonuapp:
+  jwt:
+    secret: TU_CLAVE_JWT_ALEATORIA_DE_64_CARACTERES_HEX_AQUI
+
+  # Origenes permitidos para CORS en desarrollo (Fase 10 / D-22).
+  # Lista separada por comas; incluye el puerto que use Vite (si cambia, actualizalo aqui).
+  # Alternativa: usar la variable de entorno TONUAPP_CORS_ORIGINS y omitir esta seccion.
+  cors:
+    origins: http://localhost:3000,http://localhost:5173,http://localhost:5174
+
+  # Envio real del codigo de acceso por SMTP (RF-008 / D-39).
+  # Para Gmail: usa una "App Password" (16 caracteres) generada en tu cuenta, NO tu
+  # contrasena normal (Google bloquea SMTP con la clave de acceso comun).
+  # Alternativa: variables de entorno TONUAPP_MAIL_ENABLED/HOST/PORT/USERNAME/PASSWORD/FROM.
+  mail:
+    enabled: true
+    host: smtp.gmail.com
+    port: 587
+    username: TU_CORREO_GMAIL_AQUI
+    password: TU_APP_PASSWORD_DE_16_CARACTERES_AQUI
+    from: TU_CORREO_GMAIL_AQUI

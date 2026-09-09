@@ -1,0 +1,30 @@
+/* Modulo Alertas (RF-012, D-20). Reutiliza la base de Materiales (materiales.css:
+   cabecera, filtros, tabla, botones) y define solo lo especifico: badge de estado
+   y el estilo del aviso de material. Reglas de color (D-25) intactas: naranja solo
+   CTA, teal solo accentos. */
+@import url('../materiales/materiales.css');
+
+.alertas__estado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(234, 120, 12, 0.12);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alertas__estado--atendida {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.alertas__material {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Util generico compartido: texto atenuado sin acento (en lugar de "—") */
+.materiales__muted {
+  color: var(--color-muted-foreground);
+}

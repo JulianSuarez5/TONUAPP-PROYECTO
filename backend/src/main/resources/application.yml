@@ -1,0 +1,88 @@
+# =====================================================================================
+# TONUAPP Backend - Configuracion base
+# Este archivo NO contiene credenciales. Usa referencias a variables de entorno con
+# valores por defecto NO sensibles. La configuracion local real (con las credenciales)
+# se coloca en application-local.yml (ver README), que esta en .gitignore y NO se commitea.
+# =====================================================================================
+
+spring:
+  application:
+    name: tonuapp-backend
+
+  # --- Conexion a SQL Server ---
+  # Credenciales via variables de entorno (o application-local.yml).
+  # No se exponen secretos en este archivo.
+  datasource:
+    url: ${TONUAPP_DB_URL:jdbc:sqlserver://localhost:1433;encrypt=true;trustServerCertificate=true;databaseName=tonuapp}
+    username: ${TONUAPP_DB_USERNAME:tonuapp_app}
+    password: ${TONUAPP_DB_PASSWORD:}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  # --- JPA / Hibernate ---
+  # ddl-auto = none: el esquema lo gobierna Flyway, nunca Hibernate.
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+
+  # --- Flyway (migraciones) ---
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+server:
+  port: ${TONUAPP_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+# Actuator: exponer solo el health check
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# --- Seguridad / JWT ---
+# La clave de firma se lee de la variable de entorno TONUAPP_JWT_SECRET (decision D-10).
+# Nunca se pone un valor real en este archivo versionado. Minimo 256 bits (32 bytes).
+tonuapp:
+  jwt:
+    secret: ${TONUAPP_JWT_SECRET:}
+    access-expiration-minutes: 15
+    refresh-expiration-days: 7
+  auth:
+    code-cooldown-seconds: 60
+    code-expiration-minutes: 10
+    max-failed-attempts: 5
+    # Bloqueo temporal por cuenta (RF-008 / D-22): tras N verificaciones fallidas la
+    # cuenta queda bloqueada X minutos. El trade-off (DoS dirigido a correos conocidos)
+    # esta documentado en D-22.
+    login-max-failed-attempts: 5
+    login-lockout-minutes: 15
+  reportes:
+    # Directorio donde se guardan los archivos de reportes generados (RF-014, D-21)
+    directorio: ${TONUAPP_REPORTES_DIR:./reportes}
+  mail:
+    # Envio real del codigo de acceso (RF-008, D-39). Credenciales via variables de
+    # entorno TONUAPP_MAIL_* (o application-local.yml, gitignored). Nunca en este archivo.
+    enabled: ${TONUAPP_MAIL_ENABLED:false}
+    host: ${TONUAPP_MAIL_HOST:smtp.gmail.com}
+    port: ${TONUAPP_MAIL_PORT:587}
+    username: ${TONUAPP_MAIL_USERNAME:}
+    password: ${TONUAPP_MAIL_PASSWORD:}
+    from: ${TONUAPP_MAIL_FROM:}
+  cors:
+    # Origenes permitidos para el frontend (Fase 10 / D-22). Lista separada por comas.
+    origins: ${TONUAPP_CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.tonuapp: DEBUG
+    org.hibernate.SQL: WARN

@@ -1,0 +1,119 @@
+/* Modulo Movimientos (RF-005 a RF-007, RF-011, D-19/D-34). Reutiliza la base de
+   Materiales (materiales.css: botones, cabecera, tabla, paginacion, modal,
+   formulario) y define solo lo especifico: fila de filtros con fechas, badges de
+   tipo/estado, signo de cantidad y el plegable de ubicacion (RF-015/D-34). Reglas
+   de color vigentes (D-25) intactas: naranja solo CTA, teal solo accentos. */
+@import url('../materiales/materiales.css');
+
+/* ---- Filtros ---- */
+
+.movimientos__filtros {
+  flex-wrap: wrap;
+}
+
+.movimientos__filtros .materiales__categoria select,
+.movimientos__filtros input[type='date'] {
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  font-size: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.movimientos__filtros input[type='date'] {
+  width: 172px;
+}
+
+.movimientos__filtros select:focus,
+.movimientos__filtros input[type='date']:focus {
+  outline: none;
+  border-color: var(--color-accent-2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+/* ---- Cabecera: dos acciones ---- */
+
+.movimientos__ctas {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ---- Badges de tipo y estado ---- */
+
+.movimientos__tipo {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--color-accent-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.movimientos__tipo--ajuste {
+  background: rgba(234, 120, 12, 0.12);
+  color: var(--color-accent);
+}
+
+.movimientos__estado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.movimientos__estado--anulado {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+.movimientos__cantidad {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Plegable de ubicacion (RF-015/D-34) ---- */
+
+.movimientos__plegable-cab {
+  width: 100%;
+  margin: 2px 0 10px;
+  padding: 8px 10px;
+  border: none;
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-card-foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.movimientos__plegable-cab:hover {
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--color-accent-2);
+}
+
+/* Notas del formulario (mismo estilo que en Ubicaciones, D-34) */
+.formulario__nota {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+
+@media (max-width: 767px) {
+  .movimientos__ctas {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .movimientos__ctas .btn {
+    flex: 1;
+  }
+}

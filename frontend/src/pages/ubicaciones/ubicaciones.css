@@ -1,0 +1,63 @@
+/* Modulo Ubicaciones y lotes (RF-015 / US-16 / US-17, D-34). Reutiliza la base de
+   Materiales (materiales.css: botones, cabecera, tabla, paginacion, modal,
+   formulario) y define solo lo especifico: pestanas zona/lote y notas del
+   formulario. Reglas de color vigentes (D-25) intactas: naranja solo CTA, teal
+   solo accentos. Los estilos compartidos viven en materiales.css (importado aqui). */
+@import url('../materiales/materiales.css');
+
+/* ---- Pestanas Zonas / Lotes ---- */
+
+.ubicaciones__pestanas {
+  display: inline-flex;
+  gap: 2px;
+  margin: 2px 0 22px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+}
+
+.ubicaciones__pestana {
+  border: none;
+  background: none;
+  border-radius: calc(var(--radius-md) - 3px);
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.ubicaciones__pestana:hover {
+  color: var(--color-accent-2);
+}
+
+.ubicaciones__pestana:active {
+  transform: scale(0.98);
+}
+
+.ubicaciones__pestana--activa {
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--color-accent-2);
+}
+
+/* ---- Notas explicativas del formulario (D-02 / D-34) ---- */
+
+.formulario__nota {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+
+@media (max-width: 767px) {
+  .ubicaciones__pestanas {
+    display: flex;
+    width: 100%;
+  }
+
+  .ubicaciones__pestana {
+    flex: 1;
+  }
+}
