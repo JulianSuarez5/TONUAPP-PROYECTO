@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Paginacion } from '../../components/Paginacion'
 import { paginar } from '../../utils/paginacion'
 import { Modal } from '../../components/Modal'
+import { usePaginacion } from '../../hooks/usePaginacion'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
 import * as proveedorService from '../../services/proveedorService'
@@ -40,8 +41,14 @@ export function ProveedoresPage() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [pagina, setPagina] = useState(0)
-  const [tamano, setTamano] = useState(20)
+  const iniciarCarga = () => {
+    setCargando(true)
+    setError(null)
+  }
+
+  const { pagina, tamano, setPagina, cambiarPagina, cambiarTamano } = usePaginacion(() =>
+    iniciarCarga(),
+  )
   const [busqueda, setBusqueda] = useState('')
   const [refrescar, setRefrescar] = useState(0)
 
@@ -49,11 +56,6 @@ export function ProveedoresPage() {
   const [materiales, setMateriales] = useState<MaterialProveedorResponse[]>([])
   const [cargandoMateriales, setCargandoMateriales] = useState(false)
   const [guardando, setGuardando] = useState(false)
-
-  const iniciarCarga = () => {
-    setCargando(true)
-    setError(null)
-  }
 
   // Carga la lista paginada con busqueda. Reentra al cambiar pagina, tamano o
   // busqueda; la paginacion se reinicia en 0 al teclear.
@@ -286,21 +288,9 @@ export function ProveedoresPage() {
         </table>
 
         {datos && porPagina > 0 && (
-          <Paginacion
-            {...paginacion}
-            total={porPagina}
-            pagina={pagina}
-            tamano={tamano}
-            onCambiarPagina={(n) => {
-              iniciarCarga()
-              setPagina(n)
-            }}
-            onCambiarTamano={(s) => {
-              iniciarCarga()
-              setTamano(s)
-              setPagina(0)
-            }}
-          />
+          <Paginacion {...paginacion} total={porPagina} pagina={pagina} tamano={tamano}
+            onCambiarPagina={cambiarPagina} onCambiarTamano={cambiarTamano}
+            ariaLabel="Paginación de proveedores" />
         )}
       </motion.section>
 

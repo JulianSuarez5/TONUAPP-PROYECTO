@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Paginacion } from '../../components/Paginacion'
 import { paginar } from '../../utils/paginacion'
 import { Modal } from '../../components/Modal'
+import { usePaginacion } from '../../hooks/usePaginacion'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
 import type {
@@ -50,8 +51,17 @@ export function MaterialesPage() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [pagina, setPagina] = useState(0)
-  const [tamano, setTamano] = useState(20)
+  // Marca la lista en recarga y limpia el error previo. Se llama desde los
+  // handlers que cambian filtros/pagina (no en el efecto, para evitar un
+  // setState sincronico dentro del efecto de carga)
+  const iniciarCarga = () => {
+    setCargando(true)
+    setError(null)
+  }
+
+  const { pagina, tamano, setPagina, cambiarPagina, cambiarTamano } = usePaginacion(() =>
+    iniciarCarga(),
+  )
   const [busqueda, setBusqueda] = useState('')
   const [categoria, setCategoria] = useState<number | ''>('')
   const [refrescar, setRefrescar] = useState(0)
@@ -67,14 +77,6 @@ export function MaterialesPage() {
     if (cambio.categoria !== undefined) {
       setCategoria(cambio.categoria)
     }
-  }
-
-  // Marca la lista en recarga y limpia el error previo. Se llama desde los
-  // handlers que cambian filtros/pagina (no en el efecto, para evitar un
-  // setState sincronico dentro del efecto de carga)
-  const iniciarCarga = () => {
-    setCargando(true)
-    setError(null)
   }
 
   // Categorias para el filtro (catálogo solo lectura)
@@ -335,21 +337,9 @@ export function MaterialesPage() {
         </table>
 
         {datos && porPagina > 0 && (
-          <Paginacion
-            {...paginacion}
-            total={porPagina}
-            pagina={pagina}
-            tamano={tamano}
-            onCambiarPagina={(n) => {
-              iniciarCarga()
-              setPagina(n)
-            }}
-            onCambiarTamano={(s) => {
-              iniciarCarga()
-              setTamano(s)
-              setPagina(0)
-            }}
-          />
+          <Paginacion {...paginacion} total={porPagina} pagina={pagina} tamano={tamano}
+            onCambiarPagina={cambiarPagina} onCambiarTamano={cambiarTamano}
+            ariaLabel="Paginación de materiales" />
         )}
       </motion.section>
 
