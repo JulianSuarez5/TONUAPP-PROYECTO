@@ -15,17 +15,19 @@ spring:
     # Puerto de SQLEXPRESS (por defecto 1433). Ajusta si tu instancia usa otro.
     url: jdbc:sqlserver://localhost:1433;encrypt=true;trustServerCertificate=true;databaseName=tonuapp
     username: tonuapp_app
-    # Reemplaza por la contrasena real del login tonuapp_app que creaste.
-    # Alternativa mas segura: dejar esto fuera y usar la variable de entorno TONUAPP_DB_PASSWORD.
-    password: TU_CONTRASENA_AQUI
+    # La contrasena se lee de la variable de entorno TONUAPP_DB_PASSWORD (nunca se
+    # versiona). En tu application-local.yml puedes poner el valor directo si no
+    # quieres usar variables de entorno; este ejemplo solo sabe como referencia.
+    password: ${TONUAPP_DB_PASSWORD}
 
 # Clave de firma JWT (decision D-10). Genera una con al menos 32 bytes / 256 bits, p.ej.:
 #   openssl rand -hex 32
 # o en PowerShell:  -join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
-# Alternativa: usar la variable de entorno TONUAPP_JWT_SECRET y omitir esta seccion.
+# Se lee de la variable de entorno TONUAPP_JWT_SECRET; en tu application-local.yml
+# puedes poner el valor directo (nunca lo subas a git).
 tonuapp:
   jwt:
-    secret: TU_CLAVE_JWT_ALEATORIA_DE_64_CARACTERES_HEX_AQUI
+    secret: ${TONUAPP_JWT_SECRET}
 
   # Origenes permitidos para CORS en desarrollo (Fase 10 / D-22).
   # Lista separada por comas; incluye el puerto que use Vite (si cambia, actualizalo aqui).
@@ -36,11 +38,13 @@ tonuapp:
   # Envio real del codigo de acceso por SMTP (RF-008 / D-39).
   # Para Gmail: usa una "App Password" (16 caracteres) generada en tu cuenta, NO tu
   # contrasena normal (Google bloquea SMTP con la clave de acceso comun).
-  # Alternativa: variables de entorno TONUAPP_MAIL_ENABLED/HOST/PORT/USERNAME/PASSWORD/FROM.
+  # Las credenciales se leen de las variables de entorno TONUAPP_MAIL_USERNAME y
+  # TONUAPP_MAIL_PASSWORD; en tu application-local.yml puedes poner los valores
+  # directos (nunca los subas a git).
   mail:
     enabled: true
     host: smtp.gmail.com
     port: 587
-    username: TU_CORREO_GMAIL_AQUI
-    password: TU_APP_PASSWORD_DE_16_CARACTERES_AQUI
-    from: TU_CORREO_GMAIL_AQUI
+    username: ${TONUAPP_MAIL_USERNAME}
+    password: ${TONUAPP_MAIL_PASSWORD}
+    from: ${TONUAPP_MAIL_USERNAME}
