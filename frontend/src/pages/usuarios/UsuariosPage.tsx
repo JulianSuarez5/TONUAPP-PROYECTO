@@ -13,37 +13,21 @@ import { useAuth } from '../../hooks/useAuth'
 import * as rolService from '../../services/rolService'
 import * as usuarioService from '../../services/usuarioService'
 import type { RolResponse, UsuarioRequest, UsuarioResponse } from '../../types/usuarios'
+import {
+  EASE,
+  bloqueVariants,
+  costadoVariants,
+  filaVariants,
+  paginaVariants,
+} from '../../utils/animaciones'
 import { extraerMensaje } from '../../utils/errores'
 import './usuarios.css'
-
-const EASE = [0.2, 0, 0, 1] as const
 
 type ModalActual =
   | { tipo: 'formulario'; usuario: UsuarioResponse | null }
   | { tipo: 'rol'; usuario: UsuarioResponse }
   | { tipo: 'confirmar'; usuario: UsuarioResponse }
   | null
-
-const filaVariants = {
-  reposo: { backgroundColor: 'rgb(255 255 255 / 0)' },
-  hover: { backgroundColor: 'var(--color-row-hover)' },
-}
-
-const costadoVariants = {
-  reposo: { opacity: 0, x: -8, scaleY: 0 },
-  hover: { opacity: 1, x: 0, scaleY: 1 },
-  transition: { duration: 0.16, ease: EASE },
-}
-
-const paginaVariants = {
-  reposo: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
-}
-
-const bloqueVariants = {
-  reposo: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE } },
-}
 
 export function UsuariosPage() {
   const { usuario } = useAuth()

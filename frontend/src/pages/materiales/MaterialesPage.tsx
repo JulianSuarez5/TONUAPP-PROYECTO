@@ -6,6 +6,7 @@
 // sobre <tr> genera una celda fantasma en Chromium - bug corregido).
 import { useEffect, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Paginacion } from '../../components/Paginacion'
 import { Modal } from '../../components/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
@@ -15,6 +16,13 @@ import type {
   PagedResponse,
   CategoriaResponse,
 } from '../../types/materiales'
+import {
+  EASE,
+  bloqueVariants,
+  costadoVariants,
+  filaVariants,
+  paginaVariants,
+} from '../../utils/animaciones'
 import { extraerMensaje } from '../../utils/errores'
 import { formatearCantidad } from '../../utils/formatos'
 import './materiales.css'
@@ -22,44 +30,11 @@ import './materiales.css'
 // grupo de paginas mostradas alrededor de la actual
 const VENTANA_PAGINAS = 2
 
-// Curva del design system (--ease-flat en index.css). El estándar exige ease-out
-// en entradas/salidas; esta curva fuerte aterriza rapido sin sentirse lenta.
-const EASE = [0.2, 0, 0, 1] as const
-
 type ModalActual =
   | { tipo: 'detalle'; material: MaterialResponse }
   | { tipo: 'formulario'; material: MaterialResponse | null }
   | { tipo: 'confirmar'; material: MaterialResponse }
   | null
-
-// Hover de fila con framer-motion: variants propagadas desde el <tr> al <span>
-// del costado. El fondo usa --color-row-hover (perceptible, D-28 revisado) y la
-// barra naranja entra barriendo desde la izquierda (x + scaleY, GPU). Ningun
-// pseudo-elemento sobre <tr> (celda fantasma en Chromium). Frecuencia tens/day:
-// crisp y rapido, sin rebote. reduced-motion lo gestiona MotionConfig (D-25).
-const filaVariants = {
-  reposo: { backgroundColor: 'rgb(255 255 255 / 0)' },
-  hover: { backgroundColor: 'var(--color-row-hover)' },
-}
-
-const costadoVariants = {
-  reposo: { opacity: 0, x: -8, scaleY: 0 },
-  hover: { opacity: 1, x: 0, scaleY: 1 },
-  transition: { duration: 0.16, ease: EASE },
-}
-
-// Entrada de pagina (frecuencia ocasional: navegar a Materiales). Fade + subida
-// suave 260ms ease-out con stagger corto entre cabecera/filtros/tabla (30ms,
-// estandar emilkowalski). Los modales/filas dentro no se vuelven a animar (crisp).
-const paginaVariants = {
-  reposo: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
-}
-
-const bloqueVariants = {
-  reposo: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE } },
-}
 
 export function EstadoStock({ material }: { material: MaterialResponse }) {
   const bajo = material.stock < material.stockMinimo
@@ -377,74 +352,24 @@ export function MaterialesPage() {
         </table>
 
         {datos && porPagina > 0 && (
-          <div className="materiales__pie">
-            <span className="materiales__total mono">
-              {inicio}–{fin} de {porPagina.toLocaleString('es-CO')}
-            </span>
-            <nav className="paginacion" aria-label="Paginación">
-              <button
-                type="button"
-                className="paginacion__btn"
-                disabled={pagina === 0}
-                onClick={() => {
-                  iniciarCarga()
-                  setPagina(0)
-                }}
-                aria-label="Primera página"
-              >
-                ⟪
-              </button>
-              {paginasVisibles.map((n, i) => {
-                const anterior = paginasVisibles[i - 1]
-                const salto = anterior !== undefined && n - anterior > 1
-                return (
-                  <span key={n} className="paginacion__grupo">
-                    {salto && <span className="paginacion__salto">…</span>}
-                    <button
-                      type="button"
-                      className={`paginacion__btn${n === pagina ? ' paginacion__btn--actual' : ''}`}
-                      aria-current={n === pagina ? 'page' : undefined}
-                      onClick={() => {
-                        iniciarCarga()
-                        setPagina(n)
-                      }}
-                    >
-                      {n + 1}
-                    </button>
-                  </span>
-                )
-              })}
-              <button
-                type="button"
-                className="paginacion__btn"
-                disabled={pagina >= totalPaginas - 1}
-                onClick={() => {
-                  iniciarCarga()
-                  setPagina(totalPaginas - 1)
-                }}
-                aria-label="Última página"
-              >
-                ⟫
-              </button>
-            </nav>
-            <label className="materiales__tamano">
-              Por página
-              <select
-                value={tamano}
-                onChange={(e) => {
-                  iniciarCarga()
-                  setTamano(Number(e.target.value))
-                  setPagina(0)
-                }}
-              >
-                {[10, 20, 50, 100].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <Paginacion
+            inicio={inicio}
+            fin={fin}
+            total={porPagina}
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            paginasVisibles={paginasVisibles}
+            tamano={tamano}
+            onCambiarPagina={(n) => {
+              iniciarCarga()
+              setPagina(n)
+            }}
+            onCambiarTamano={(s) => {
+              iniciarCarga()
+              setTamano(s)
+              setPagina(0)
+            }}
+          />
         )}
       </motion.section>
 

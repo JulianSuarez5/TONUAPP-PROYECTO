@@ -8,6 +8,7 @@
 // backend lo exige (@PreAuthorize) y la UI no ofrece la ruta a un Cliente.
 import { useEffect, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Paginacion } from '../../components/Paginacion'
 import { Modal } from '../../components/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
@@ -23,12 +24,17 @@ import type {
   TipoMovimiento,
 } from '../../types/movimientos'
 import type { LoteResponse, ZonaAcopioResponse } from '../../types/ubicaciones'
+import {
+  EASE,
+  bloqueVariants,
+  costadoVariants,
+  filaVariants,
+  paginaVariants,
+} from '../../utils/animaciones'
 import { extraerMensaje } from '../../utils/errores'
 import './movimientos.css'
 
 const VENTANA_PAGINAS = 2
-
-const EASE = [0.2, 0, 0, 1] as const
 
 const TIPOS_MOVIMIENTO: { valor: TipoMovimiento; etiqueta: string }[] = [
   { valor: 'entrada', etiqueta: 'Entrada' },
@@ -49,27 +55,6 @@ type ModalActual =
   | { tipo: 'detalle'; mov: MovimientoResponse }
   | { tipo: 'anular'; mov: MovimientoResponse }
   | null
-
-const filaVariants = {
-  reposo: { backgroundColor: 'rgb(255 255 255 / 0)' },
-  hover: { backgroundColor: 'var(--color-row-hover)' },
-}
-
-const costadoVariants = {
-  reposo: { opacity: 0, x: -8, scaleY: 0 },
-  hover: { opacity: 1, x: 0, scaleY: 1 },
-  transition: { duration: 0.16, ease: EASE },
-}
-
-const paginaVariants = {
-  reposo: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
-}
-
-const bloqueVariants = {
-  reposo: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE } },
-}
 
 function cargarTodosMateriales(): Promise<MaterialResponse[]> {
   return materialService.listar(0, 100).then(async (primera) => {
@@ -431,50 +416,26 @@ export function MovimientosPage() {
         </table>
 
         {datos && datos.totalElements > 0 && (
-          <div className="materiales__pie">
-            <span className="materiales__total mono">
-              {resumen(datos).inicio}–{resumen(datos).fin} de {datos.totalElements.toLocaleString('es-CO')}
-            </span>
-            <nav className="paginacion" aria-label="Paginación de movimientos">
-              {paginasVisibles(datos.totalPages).map((n, i, arr) => {
-                const anterior = arr[i - 1]
-                const salto = anterior !== undefined && n - anterior > 1
-                return (
-                  <span key={n} className="paginacion__grupo">
-                    {salto && <span className="paginacion__salto">…</span>}
-                    <button
-                      type="button"
-                      className={`paginacion__btn${n === pagina ? ' paginacion__btn--actual' : ''}`}
-                      aria-current={n === pagina ? 'page' : undefined}
-                      onClick={() => {
-                        setCargando(true)
-                        setPagina(n)
-                      }}
-                    >
-                      {n + 1}
-                    </button>
-                  </span>
-                )
-              })}
-            </nav>
-            <label className="materiales__tamano">
-              Por página
-              <select
-                value={tamano}
-                onChange={(e) => {
-                  setCargando(true)
-                  setTamano(Number(e.target.value))
-                  setPagina(0)
-                }}
-              >
-                {[10, 20, 50, 100].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <Paginacion
+            inicio={resumen(datos).inicio}
+            fin={resumen(datos).fin}
+            total={datos.totalElements}
+            pagina={pagina}
+            totalPaginas={datos.totalPages}
+            paginasVisibles={paginasVisibles(datos.totalPages)}
+            tamano={tamano}
+            mostrarExtremos={false}
+            ariaLabel="Paginación de movimientos"
+            onCambiarPagina={(n) => {
+              setCargando(true)
+              setPagina(n)
+            }}
+            onCambiarTamano={(s) => {
+              setCargando(true)
+              setTamano(s)
+              setPagina(0)
+            }}
+          />
         )}
       </motion.section>
 

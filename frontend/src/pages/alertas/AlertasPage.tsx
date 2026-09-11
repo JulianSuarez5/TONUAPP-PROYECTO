@@ -9,20 +9,9 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import * as alertaService from '../../services/alertaService'
 import type { AlertaResponse, EstadoAlerta } from '../../types/alertas'
+import { EASE, bloqueVariants, paginaVariants } from '../../utils/animaciones'
 import { extraerMensaje } from '../../utils/errores'
 import './alertas.css'
-
-const EASE = [0.2, 0, 0, 1] as const
-
-const paginaVariants = {
-  reposo: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
-}
-
-const bloqueVariants = {
-  reposo: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE } },
-}
 
 export function AlertasPage() {
   const { usuario } = useAuth()

@@ -7,6 +7,7 @@
 // (D-28/D-30/D-32): framer-motion, modales con el estandar emilkowalski.
 import { useEffect, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Paginacion } from '../../components/Paginacion'
 import { Modal } from '../../components/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
@@ -19,12 +20,17 @@ import type {
   ZonaAcopioRequest,
   ZonaAcopioResponse,
 } from '../../types/ubicaciones'
+import {
+  EASE,
+  bloqueVariants,
+  costadoVariants,
+  filaVariants,
+  paginaVariants,
+} from '../../utils/animaciones'
 import { extraerMensaje } from '../../utils/errores'
 import './ubicaciones.css'
 
 const VENTANA_PAGINAS = 2
-
-const EASE = [0.2, 0, 0, 1] as const
 
 type Vista = 'zonas' | 'lotes'
 
@@ -39,27 +45,6 @@ type LoteModalActual =
   | { tipo: 'formulario'; lote: LoteResponse | null }
   | { tipo: 'confirmar'; lote: LoteResponse }
   | null
-
-const filaVariants = {
-  reposo: { backgroundColor: 'rgb(255 255 255 / 0)' },
-  hover: { backgroundColor: 'var(--color-row-hover)' },
-}
-
-const costadoVariants = {
-  reposo: { opacity: 0, x: -8, scaleY: 0 },
-  hover: { opacity: 1, x: 0, scaleY: 1 },
-  transition: { duration: 0.16, ease: EASE },
-}
-
-const paginaVariants = {
-  reposo: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
-}
-
-const bloqueVariants = {
-  reposo: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE } },
-}
 
 export function UbicacionesPage() {
   const { usuario } = useAuth()
@@ -387,50 +372,26 @@ export function UbicacionesPage() {
               </table>
 
               {zonas && zonas.totalElements > 0 && (
-                <div className="materiales__pie">
-                  <span className="materiales__total mono">
-                    {resumenZonas(zonas).inicio}–{resumenZonas(zonas).fin} de {zonas.totalElements.toLocaleString('es-CO')}
-                  </span>
-                  <nav className="paginacion" aria-label="Paginación de zonas">
-                    {paginasVisibles(paginaZonas, zonas.totalPages).map((n, i, arr) => {
-                      const anterior = arr[i - 1]
-                      const salto = anterior !== undefined && n - anterior > 1
-                      return (
-                        <span key={n} className="paginacion__grupo">
-                          {salto && <span className="paginacion__salto">…</span>}
-                          <button
-                            type="button"
-                            className={`paginacion__btn${n === paginaZonas ? ' paginacion__btn--actual' : ''}`}
-                            aria-current={n === paginaZonas ? 'page' : undefined}
-                            onClick={() => {
-                              setCargandoZonas(true)
-                              setPaginaZonas(n)
-                            }}
-                          >
-                            {n + 1}
-                          </button>
-                        </span>
-                      )
-                    })}
-                  </nav>
-                  <label className="materiales__tamano">
-                    Por página
-                    <select
-                      value={tamanoZonas}
-                      onChange={(e) => {
-                        setCargandoZonas(true)
-                        setTamanoZonas(Number(e.target.value))
-                        setPaginaZonas(0)
-                      }}
-                    >
-                      {[10, 20, 50, 100].map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <Paginacion
+                  inicio={resumenZonas(zonas).inicio}
+                  fin={resumenZonas(zonas).fin}
+                  total={zonas.totalElements}
+                  pagina={paginaZonas}
+                  totalPaginas={zonas.totalPages}
+                  paginasVisibles={paginasVisibles(paginaZonas, zonas.totalPages)}
+                  tamano={tamanoZonas}
+                  mostrarExtremos={false}
+                  ariaLabel="Paginación de zonas"
+                  onCambiarPagina={(n) => {
+                    setCargandoZonas(true)
+                    setPaginaZonas(n)
+                  }}
+                  onCambiarTamano={(s) => {
+                    setCargandoZonas(true)
+                    setTamanoZonas(s)
+                    setPaginaZonas(0)
+                  }}
+                />
               )}
             </motion.section>
           </motion.div>
@@ -531,50 +492,26 @@ export function UbicacionesPage() {
               </table>
 
               {lotes && lotes.totalElements > 0 && (
-                <div className="materiales__pie">
-                  <span className="materiales__total mono">
-                    {resumenLotes(lotes).inicio}–{resumenLotes(lotes).fin} de {lotes.totalElements.toLocaleString('es-CO')}
-                  </span>
-                  <nav className="paginacion" aria-label="Paginación de lotes">
-                    {paginasVisibles(paginaLotes, lotes.totalPages).map((n, i, arr) => {
-                      const anterior = arr[i - 1]
-                      const salto = anterior !== undefined && n - anterior > 1
-                      return (
-                        <span key={n} className="paginacion__grupo">
-                          {salto && <span className="paginacion__salto">…</span>}
-                          <button
-                            type="button"
-                            className={`paginacion__btn${n === paginaLotes ? ' paginacion__btn--actual' : ''}`}
-                            aria-current={n === paginaLotes ? 'page' : undefined}
-                            onClick={() => {
-                              setCargandoLotes(true)
-                              setPaginaLotes(n)
-                            }}
-                          >
-                            {n + 1}
-                          </button>
-                        </span>
-                      )
-                    })}
-                  </nav>
-                  <label className="materiales__tamano">
-                    Por página
-                    <select
-                      value={tamanoLotes}
-                      onChange={(e) => {
-                        setCargandoLotes(true)
-                        setTamanoLotes(Number(e.target.value))
-                        setPaginaLotes(0)
-                      }}
-                    >
-                      {[10, 20, 50, 100].map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <Paginacion
+                  inicio={resumenLotes(lotes).inicio}
+                  fin={resumenLotes(lotes).fin}
+                  total={lotes.totalElements}
+                  pagina={paginaLotes}
+                  totalPaginas={lotes.totalPages}
+                  paginasVisibles={paginasVisibles(paginaLotes, lotes.totalPages)}
+                  tamano={tamanoLotes}
+                  mostrarExtremos={false}
+                  ariaLabel="Paginación de lotes"
+                  onCambiarPagina={(n) => {
+                    setCargandoLotes(true)
+                    setPaginaLotes(n)
+                  }}
+                  onCambiarTamano={(s) => {
+                    setCargandoLotes(true)
+                    setTamanoLotes(s)
+                    setPaginaLotes(0)
+                  }}
+                />
               )}
             </motion.section>
           </motion.div>
