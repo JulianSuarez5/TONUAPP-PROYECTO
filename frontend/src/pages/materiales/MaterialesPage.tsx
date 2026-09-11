@@ -7,6 +7,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Paginacion } from '../../components/Paginacion'
+import { paginar } from '../../utils/paginacion'
 import { Modal } from '../../components/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
@@ -26,9 +27,6 @@ import {
 import { extraerMensaje } from '../../utils/errores'
 import { formatearCantidad } from '../../utils/formatos'
 import './materiales.css'
-
-// grupo de paginas mostradas alrededor de la actual
-const VENTANA_PAGINAS = 2
 
 type ModalActual =
   | { tipo: 'detalle'; material: MaterialResponse }
@@ -170,22 +168,7 @@ export function MaterialesPage() {
   }
 
   const porPagina = datos?.totalElements ?? 0
-  const totalPaginas = datos?.totalPages ?? 0
-  const inicio = porPagina === 0 ? 0 : pagina * tamano + 1
-  const fin = Math.min(pagina * tamano + tamano, porPagina)
-
-  // paginas que se muestran (ventana + extremos si aplica)
-  const paginasVisibles = Array.from(
-    new Set([
-      0,
-      totalPaginas - 1,
-      pagina,
-      pagina - VENTANA_PAGINAS,
-      pagina + VENTANA_PAGINAS,
-    ]),
-  )
-    .filter((n) => n >= 0 && n < totalPaginas)
-    .sort((a, b) => a - b)
+  const paginacion = paginar(pagina, tamano, porPagina, datos?.totalPages ?? 0)
 
   const modalMaterial = modal?.tipo === 'formulario' ? modal.material : null
 
@@ -353,12 +336,9 @@ export function MaterialesPage() {
 
         {datos && porPagina > 0 && (
           <Paginacion
-            inicio={inicio}
-            fin={fin}
+            {...paginacion}
             total={porPagina}
             pagina={pagina}
-            totalPaginas={totalPaginas}
-            paginasVisibles={paginasVisibles}
             tamano={tamano}
             onCambiarPagina={(n) => {
               iniciarCarga()

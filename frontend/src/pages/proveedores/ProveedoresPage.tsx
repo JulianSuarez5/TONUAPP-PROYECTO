@@ -8,6 +8,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Paginacion } from '../../components/Paginacion'
+import { paginar } from '../../utils/paginacion'
 import { Modal } from '../../components/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import * as materialService from '../../services/materialService'
@@ -23,8 +24,6 @@ import {
 } from '../../utils/animaciones'
 import { extraerMensaje } from '../../utils/errores'
 import './proveedores.css'
-
-const VENTANA_PAGINAS = 2
 
 type ModalActual =
   | { tipo: 'detalle'; proveedor: ProveedorResponse }
@@ -140,15 +139,7 @@ export function ProveedoresPage() {
   }
 
   const porPagina = datos?.totalElements ?? 0
-  const totalPaginas = datos?.totalPages ?? 0
-  const inicio = porPagina === 0 ? 0 : pagina * tamano + 1
-  const fin = Math.min(pagina * tamano + tamano, porPagina)
-
-  const paginasVisibles = Array.from(
-    new Set([0, totalPaginas - 1, pagina, pagina - VENTANA_PAGINAS, pagina + VENTANA_PAGINAS]),
-  )
-    .filter((n) => n >= 0 && n < totalPaginas)
-    .sort((a, b) => a - b)
+  const paginacion = paginar(pagina, tamano, porPagina, datos?.totalPages ?? 0)
 
   const modalProveedor = modal?.tipo === 'formulario' ? modal.proveedor : null
 
@@ -296,12 +287,9 @@ export function ProveedoresPage() {
 
         {datos && porPagina > 0 && (
           <Paginacion
-            inicio={inicio}
-            fin={fin}
+            {...paginacion}
             total={porPagina}
             pagina={pagina}
-            totalPaginas={totalPaginas}
-            paginasVisibles={paginasVisibles}
             tamano={tamano}
             onCambiarPagina={(n) => {
               iniciarCarga()
