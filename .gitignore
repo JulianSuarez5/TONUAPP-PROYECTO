@@ -39,4 +39,5 @@ frontend/skills-lock.json
 
 # === Respaldos y artefactos generados ===
 .backup-*/
-reportes/
+/reportes/
+backend/reportes/

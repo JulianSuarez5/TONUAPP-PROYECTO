@@ -1,0 +1,135 @@
+/* Modulo Reportes (RF-014/D-21). Reutiliza la base de Materiales (materiales.css:
+   cabecera, tabla, botones, badges de estado de movimientos en el reporte de
+   movimientos) y define solo lo especifico: pestanas de reporte, barra de rango y
+   exportacion, y badges de alerta/bajo stock. Reglas de color (D-25) intactas:
+   naranja solo CTA, teal solo accentos, como el resto de modulos. */
+@import url('../materiales/materiales.css');
+
+/* ---- Pestanas de reporte ---- */
+
+.reportes__pestanas {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 2px 0 18px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+}
+
+.reportes__pestana {
+  border: none;
+  background: none;
+  border-radius: calc(var(--radius-md) - 3px);
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.reportes__pestana:hover {
+  color: var(--color-accent-2);
+}
+
+.reportes__pestana:active {
+  transform: scale(0.98);
+}
+
+.reportes__pestana--activa {
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--color-accent-2);
+}
+
+/* ---- Barra de rango + exportar ---- */
+
+.reportes__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.reportes__rango {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.reportes__rango input[type='date'] {
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  font-size: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.reportes__rango input[type='date']:focus {
+  outline: none;
+  border-color: var(--color-accent-2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+.reportes__exportar {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.reportes__exportar .btn {
+  white-space: nowrap;
+}
+
+/* ---- Badges de bajo stock y alerta ---- */
+
+.reportes__critico {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.reportes__alerta-activa {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(234, 120, 12, 0.12);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reportes__tipo {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--color-accent-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reportes__material {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Util generico compartido: texto atenuado sin acento (en lugar de "—") */
+.materiales__muted {
+  color: var(--color-muted-foreground);
+}
+
+@media (max-width: 767px) {
+  .reportes__exportar {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .reportes__exportar .btn {
+    flex: 1;
+  }
+}
