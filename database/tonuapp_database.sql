@@ -1,44 +1,43 @@
 -- =====================================================================================
 -- TONUAPP - Base de Datos Definitiva (SQL Server)
 -- Agregados el Tonusco S.A.S. - Gestion de Inventario de Materiales de Construccion
+-- =====================================================================================
+-- Este script crea la BD, el login, todas las tablas, indices, datos semilla y es
+-- IDEMPOTENTE: puede ejecutarse multiples veces sin errores gracias a los guards
+-- IF OBJECT_ID / IF NOT EXISTS.
 --
--- Motor: Microsoft SQL Server 2019+ (probado en SQLEXPRESS)
--- Referencia funcional: RF-001 a RF-015 (docs/requisitos/02_requisitos_funcionales.md)
--- Historias: US-01 a US-36 (docs/requisitos/03_product_backlog.md)
---
--- ESQUEMA FINAL CONSOLIDADO: incluye TODAS las migraciones Flyway (V1 a V7).
--- Nota: el backend (Spring Boot) declara ddl-auto=none, el esquema lo gobierna Flyway con
--- migraciones incrementales en backend/src/main/resources/db/migration/. Este script es la
--- version "manual" equivalente, en el estilo del proyecto, lista para crear la BD y las
--- 17 tablas de una sola vez (tambien se usa como documentacion del DER).
---
--- Adaptado desde: tonuapp_schema_borrador_mysql.sql (MySQL -> SQL Server)
--- Cambios clave de traduccion:
---   AUTO_INCREMENT           -> IDENTITY(1,1)
---   ENUM(...)                -> NVARCHAR(n) + CHECK
---   BOOLEAN                  -> BIT
---   JSON                     -> NVARCHAR(MAX)
---   ON UPDATE CURRENT_TIMESTAMP -> trigger en dbo (idioma neutro)
---   DATETIME DEFAULT CURR... -> DATETIME2 DEFAULT SYSDATETIME()
---
--- Decisiones de diseno (ver docs/decisions/DECISIONES.md):
---   D-01: Proveedor <-> Material es N:M (tabla intermedia material_proveedor)
---   D-02: Movimientos como fuente de verdad + existencia materializada en materiales
---   D-03: Stock = movimientos + cache materializada, sincronizado en el backend,
---         NO via trigger (control explicito y testeable en el servicio)
---   D-04: Soft delete en entidades criticas (columna 'activo' / 'estado')
+-- Nota: Este es el script STANDALONE para otra maquina. La app TONUAPP usa Flyway
+-- internamente (V1-V7) para migrar la BD de forma automatica al arrancar. Este
+-- script es equivalente a correr Flyway sobre una BD vacia, pero manual.
 -- =====================================================================================
 
 -- =====================================================================================
--- 0. BASE DE DATOS
+-- 0. BASE DE DATOS Y USUARIO
 -- =====================================================================================
-IF DB_ID(N'tonuapp') IS NULL
+
+-- 0.1 Login de SQL Server para la app
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'tonuapp_app')
+BEGIN
+    CREATE LOGIN tonuapp_app WITH PASSWORD = 'Julian2026!', CHECK_POLICY = OFF;
+END
+GO
+
+-- 0.2 Crear la base de datos (si no existe)
+IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = N'tonuapp')
 BEGIN
     CREATE DATABASE tonuapp;
 END
 GO
 
 USE tonuapp;
+GO
+
+-- 0.3 Usuario de BD con permisos de DDL (Flyway necesita crear tablas)
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'tonuapp_app')
+BEGIN
+    CREATE USER tonuapp_app FOR LOGIN tonuapp_app;
+    EXEC sp_addrolemember 'db_owner', 'tonuapp_app';
+END
 GO
 
 -- =====================================================================================
@@ -70,29 +69,30 @@ GO
 IF OBJECT_ID(N'dbo.usuarios', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.usuarios (
-        id_usuario          INT IDENTITY(1,1) NOT NULL,
-        nombre              NVARCHAR(100)     NOT NULL,
-        correo              NVARCHAR(150)     NOT NULL,
-        id_rol              INT               NOT NULL,
-        activo              BIT               NOT NULL CONSTRAINT df_usuarios_activo DEFAULT 1,
-        es_admin_principal  BIT               NOT NULL CONSTRAINT df_usuarios_es_admin_principal DEFAULT 0,
-        fecha_creacion      DATETIME2(0)      NOT NULL CONSTRAINT df_usuarios_fecha_creacion DEFAULT SYSDATETIME(),
-        fecha_actualizacion DATETIME2(0)      NULL,
-        -- Bloqueo temporal por cuenta (RF-008/D-22, migracion V6)
-        intentos_login_fallidos INT            NOT NULL CONSTRAINT df_usuarios_intentos_login DEFAULT 0,
-        bloqueo_hasta          DATETIME2       NULL,
-        -- version = optimistic locking (V2, D-03): evita ediciones concurrentes
-        version                INT             NOT NULL CONSTRAINT df_usuarios_version DEFAULT 0,
+        id_usuario              INT IDENTITY(1,1) NOT NULL,
+        nombre                  NVARCHAR(100)     NOT NULL,
+        correo                  NVARCHAR(150)     NOT NULL,
+        id_rol                  INT               NOT NULL,
+        activo                  BIT               NOT NULL CONSTRAINT df_usuarios_activo DEFAULT 1,
+        es_admin_principal      BIT               NOT NULL CONSTRAINT df_usuarios_es_admin_principal DEFAULT 0,
+        fecha_creacion          DATETIME2(0)      NOT NULL CONSTRAINT df_usuarios_fecha_creacion DEFAULT SYSDATETIME(),
+        fecha_actualizacion     DATETIME2(0)      NULL,
+        intentos_login_fallidos INT               NOT NULL CONSTRAINT df_usuarios_intentos_login DEFAULT 0,
+        bloqueo_hasta           DATETIME2         NULL,
+        version                 INT               NOT NULL CONSTRAINT df_usuarios_version DEFAULT 0,
         CONSTRAINT pk_usuarios PRIMARY KEY (id_usuario),
         CONSTRAINT uq_usuarios_correo UNIQUE (correo),
-        CONSTRAINT ck_usuarios_intentos_login_positivo CHECK (intentos_login_fallidos >= 0),
+        CONSTRAINT ck_usuarios_intentos_login CHECK (intentos_login_fallidos >= 0),
         CONSTRAINT fk_usuarios_rol FOREIGN KEY (id_rol)
             REFERENCES dbo.roles (id_rol)
     );
 END
 GO
 
-CREATE INDEX ix_usuarios_rol ON dbo.usuarios (id_rol);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_usuarios_rol' AND object_id = OBJECT_ID(N'dbo.usuarios'))
+BEGIN
+    CREATE INDEX ix_usuarios_rol ON dbo.usuarios (id_rol);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -118,7 +118,10 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_codigos_usuario ON dbo.codigos_acceso (id_usuario);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_codigos_usuario' AND object_id = OBJECT_ID(N'dbo.codigos_acceso'))
+BEGIN
+    CREATE INDEX ix_codigos_usuario ON dbo.codigos_acceso (id_usuario);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -129,12 +132,12 @@ GO
 IF OBJECT_ID(N'dbo.refresh_tokens', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.refresh_tokens (
-        id              BIGINT             NOT NULL IDENTITY(1,1),
-        id_usuario      INT                NOT NULL,
-        token_hash      NVARCHAR(64)       NOT NULL,
-        expiracion      DATETIME2(0)       NOT NULL,
-        revocado        BIT                NOT NULL CONSTRAINT df_refresh_revocado DEFAULT 0,
-        fecha_creacion  DATETIME2(0)       NOT NULL CONSTRAINT df_refresh_fecha_creacion DEFAULT SYSDATETIME(),
+        id              BIGINT          NOT NULL IDENTITY(1,1),
+        id_usuario      INT             NOT NULL,
+        token_hash      NVARCHAR(64)    NOT NULL,
+        expiracion      DATETIME2(0)    NOT NULL,
+        revocado        BIT             NOT NULL CONSTRAINT df_refresh_revocado DEFAULT 0,
+        fecha_creacion  DATETIME2(0)    NOT NULL CONSTRAINT df_refresh_fecha_creacion DEFAULT SYSDATETIME(),
         CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
         CONSTRAINT uq_refresh_tokens_hash UNIQUE (token_hash),
         CONSTRAINT fk_refresh_tokens_usuario FOREIGN KEY (id_usuario)
@@ -143,8 +146,11 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_refresh_usuario ON dbo.refresh_tokens (id_usuario);
-CREATE INDEX ix_refresh_revocado_expiracion ON dbo.refresh_tokens (revocado, expiracion);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_refresh_usuario' AND object_id = OBJECT_ID(N'dbo.refresh_tokens'))
+BEGIN
+    CREATE INDEX ix_refresh_usuario ON dbo.refresh_tokens (id_usuario);
+    CREATE INDEX ix_refresh_revocado_expiracion ON dbo.refresh_tokens (revocado, expiracion);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -154,11 +160,11 @@ GO
 IF OBJECT_ID(N'dbo.preferencias_usuario', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.preferencias_usuario (
-        id_usuario          INT                NOT NULL,
-        panel_inicio        NVARCHAR(50)       NOT NULL CONSTRAINT df_preferencias_panel DEFAULT N'dashboard',
-        filtros_favoritos   NVARCHAR(MAX)      NULL,
-        orden_default       NVARCHAR(30)       NOT NULL CONSTRAINT df_preferencias_orden DEFAULT N'nombre_asc',
-        tema_visual         NVARCHAR(20)       NOT NULL CONSTRAINT df_preferencias_tema DEFAULT N'claro',
+        id_usuario          INT            NOT NULL,
+        panel_inicio        NVARCHAR(50)   NOT NULL CONSTRAINT df_preferencias_panel DEFAULT N'dashboard',
+        filtros_favoritos   NVARCHAR(MAX)  NULL,
+        orden_default       NVARCHAR(30)   NOT NULL CONSTRAINT df_preferencias_orden DEFAULT N'nombre_asc',
+        tema_visual         NVARCHAR(20)   NOT NULL CONSTRAINT df_preferencias_tema DEFAULT N'claro',
         CONSTRAINT pk_preferencias_usuario PRIMARY KEY (id_usuario),
         CONSTRAINT fk_preferencias_usuario FOREIGN KEY (id_usuario)
             REFERENCES dbo.usuarios (id_usuario)
@@ -263,10 +269,9 @@ GO
 -- -------------------------------------------------------------------------------------
 -- 2.3 materiales - RF-001, RF-002, RF-003, RF-004, RF-011, RF-012, RF-015
 -- NUCLEO del inventario.
---   stock               = existencia materializada (D-03/D-17). Se sincroniza con los
---                         movimientos en el backend, dentro de la misma transaccion.
---   stock_minimo        = umbral para alertas (RF-012).
---   NO hay id_proveedor aqui: la relacion con proveedores es N:M via material_proveedor.
+--   stock = existencia materializada (D-03/D-17). Se sincroniza con los movimientos
+--           en el backend, dentro de la misma transaccion.
+--   stock_minimo = umbral para alertas (RF-012).
 --   'activo' para soft delete (RF-004: no eliminar materiales con movimientos).
 -- -------------------------------------------------------------------------------------
 IF OBJECT_ID(N'dbo.materiales', N'U') IS NULL
@@ -297,10 +302,13 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_materiales_busqueda ON dbo.materiales (nombre);
-CREATE INDEX ix_materiales_categoria ON dbo.materiales (id_categoria);
-CREATE INDEX ix_materiales_unidad ON dbo.materiales (id_unidad);
-CREATE INDEX ix_materiales_zona ON dbo.materiales (id_zona);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_materiales_busqueda' AND object_id = OBJECT_ID(N'dbo.materiales'))
+BEGIN
+    CREATE INDEX ix_materiales_busqueda ON dbo.materiales (nombre);
+    CREATE INDEX ix_materiales_categoria ON dbo.materiales (id_categoria);
+    CREATE INDEX ix_materiales_unidad ON dbo.materiales (id_unidad);
+    CREATE INDEX ix_materiales_zona ON dbo.materiales (id_zona);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -310,14 +318,11 @@ GO
 IF OBJECT_ID(N'dbo.material_proveedor', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.material_proveedor (
-        id_material     INT          NOT NULL,
-        id_proveedor    INT          NOT NULL,
-        es_principal    BIT          NOT NULL CONSTRAINT df_mat_prov_es_principal DEFAULT 0,
+        id_material     INT           NOT NULL,
+        id_proveedor    INT           NOT NULL,
+        es_principal    BIT           NOT NULL CONSTRAINT df_mat_prov_es_principal DEFAULT 0,
         fecha_asociacion DATETIME2(0) NOT NULL CONSTRAINT df_mat_prov_fecha DEFAULT SYSDATETIME(),
         CONSTRAINT pk_material_proveedor PRIMARY KEY (id_material, id_proveedor),
-        -- NO ON DELETE CASCADE: la relacion proveedor<->material es critica.
-        -- RF-010 prohibe eliminar proveedores (o materiales) con asociaciones.
-        -- El borrado se bloquea a nivel de FK (NO ACTION) y se valida en el backend.
         CONSTRAINT fk_mat_prov_material FOREIGN KEY (id_material)
             REFERENCES dbo.materiales (id_material),
         CONSTRAINT fk_mat_prov_proveedor FOREIGN KEY (id_proveedor)
@@ -326,7 +331,10 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_mat_prov_proveedor ON dbo.material_proveedor (id_proveedor);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_mat_prov_proveedor' AND object_id = OBJECT_ID(N'dbo.material_proveedor'))
+BEGIN
+    CREATE INDEX ix_mat_prov_proveedor ON dbo.material_proveedor (id_proveedor);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -352,7 +360,10 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_lotes_material ON dbo.lotes (id_material);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_lotes_material' AND object_id = OBJECT_ID(N'dbo.lotes'))
+BEGIN
+    CREATE INDEX ix_lotes_material ON dbo.lotes (id_material);
+END
 GO
 
 -- =====================================================================================
@@ -360,27 +371,25 @@ GO
 -- =====================================================================================
 
 -- -------------------------------------------------------------------------------------
--- 3.1 movimientos_inventario - RF-002 (entradas), RF-004 (salidas/ediciones),
---     RF-013 (mermas), US-18 a US-23.
+-- 3.1 movimientos_inventario - RF-002, RF-004, RF-013, US-18 a US-23.
 -- FUENTE DE VERDAD del inventario (D-02). Cada operacion (entrada, salida_venta,
 -- salida_merma, ajuste) se registra aqui. La cantidad es SIEMPRE positiva; el signo lo
 -- define 'tipo_movimiento'. 'estado' permite anular movimientos sin borrarlos (US-22).
--- 'id_lote'/'id_zona' opcionales segun corresponda.
 -- -------------------------------------------------------------------------------------
 IF OBJECT_ID(N'dbo.movimientos_inventario', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.movimientos_inventario (
-        id_movimiento   INT IDENTITY(1,1) NOT NULL,
-        id_material     INT               NOT NULL,
-        id_usuario      INT               NOT NULL,
-        tipo_movimiento NVARCHAR(20)      NOT NULL,
-        cantidad        DECIMAL(12,2)     NOT NULL,
-        id_lote         INT               NULL,
-        id_zona         INT               NULL,
-        motivo          NVARCHAR(200)     NULL,
-        observaciones   NVARCHAR(300)     NULL,
-        estado          NVARCHAR(10)      NOT NULL CONSTRAINT df_movimientos_estado DEFAULT N'activo',
-        fecha_movimiento DATETIME2(0)     NOT NULL CONSTRAINT df_movimientos_fecha DEFAULT SYSDATETIME(),
+        id_movimiento    INT IDENTITY(1,1) NOT NULL,
+        id_material      INT               NOT NULL,
+        id_usuario       INT               NOT NULL,
+        tipo_movimiento  NVARCHAR(20)      NOT NULL,
+        cantidad         DECIMAL(12,2)     NOT NULL,
+        id_lote          INT               NULL,
+        id_zona          INT               NULL,
+        motivo           NVARCHAR(200)     NULL,
+        observaciones    NVARCHAR(300)     NULL,
+        estado           NVARCHAR(10)      NOT NULL CONSTRAINT df_movimientos_estado DEFAULT N'activo',
+        fecha_movimiento DATETIME2(0)      NOT NULL CONSTRAINT df_movimientos_fecha DEFAULT SYSDATETIME(),
         CONSTRAINT pk_movimientos PRIMARY KEY (id_movimiento),
         CONSTRAINT ck_movimientos_tipo CHECK (tipo_movimiento IN (N'entrada', N'salida_venta', N'salida_merma', N'ajuste')),
         CONSTRAINT ck_movimientos_cantidad CHECK (cantidad > 0),
@@ -397,9 +406,12 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_movimientos_material_fecha ON dbo.movimientos_inventario (id_material, fecha_movimiento);
-CREATE INDEX ix_movimientos_usuario ON dbo.movimientos_inventario (id_usuario);
-CREATE INDEX ix_movimientos_tipo ON dbo.movimientos_inventario (tipo_movimiento);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_movimientos_material_fecha' AND object_id = OBJECT_ID(N'dbo.movimientos_inventario'))
+BEGIN
+    CREATE INDEX ix_movimientos_material_fecha ON dbo.movimientos_inventario (id_material, fecha_movimiento);
+    CREATE INDEX ix_movimientos_usuario ON dbo.movimientos_inventario (id_usuario);
+    CREATE INDEX ix_movimientos_tipo ON dbo.movimientos_inventario (tipo_movimiento);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -410,14 +422,14 @@ GO
 IF OBJECT_ID(N'dbo.ajustes_inventario', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ajustes_inventario (
-        id_ajuste           INT IDENTITY(1,1) NOT NULL,
-        id_material         INT               NOT NULL,
-        id_usuario          INT               NOT NULL,
-        id_movimiento       INT               NULL,
-        cantidad_anterior   DECIMAL(12,2)     NOT NULL,
-        cantidad_nueva      DECIMAL(12,2)     NOT NULL,
-        motivo              NVARCHAR(200)     NOT NULL,
-        fecha_ajuste        DATETIME2(0)      NOT NULL CONSTRAINT df_ajustes_fecha DEFAULT SYSDATETIME(),
+        id_ajuste         INT IDENTITY(1,1) NOT NULL,
+        id_material       INT               NOT NULL,
+        id_usuario        INT               NOT NULL,
+        id_movimiento     INT               NULL,
+        cantidad_anterior DECIMAL(12,2)     NOT NULL,
+        cantidad_nueva    DECIMAL(12,2)     NOT NULL,
+        motivo            NVARCHAR(200)     NOT NULL,
+        fecha_ajuste      DATETIME2(0)      NOT NULL CONSTRAINT df_ajustes_fecha DEFAULT SYSDATETIME(),
         CONSTRAINT pk_ajustes PRIMARY KEY (id_ajuste),
         CONSTRAINT ck_ajustes_cantidad_nueva CHECK (cantidad_nueva >= 0),
         CONSTRAINT fk_ajustes_material FOREIGN KEY (id_material)
@@ -430,28 +442,33 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_ajustes_material ON dbo.ajustes_inventario (id_material);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_ajustes_material' AND object_id = OBJECT_ID(N'dbo.ajustes_inventario'))
+BEGIN
+    CREATE INDEX ix_ajustes_material ON dbo.ajustes_inventario (id_material);
+END
 GO
 
 -- Indice UNICO filtrado: un ajuste solo puede referenciar su propio movimiento (D-19).
--- Permite NULL en id_movimiento, pero impide que dos ajustes apunten al mismo movimiento.
-CREATE UNIQUE INDEX uq_ajustes_movimiento ON dbo.ajustes_inventario (id_movimiento)
-    WHERE id_movimiento IS NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'uq_ajustes_movimiento' AND object_id = OBJECT_ID(N'dbo.ajustes_inventario'))
+BEGIN
+    CREATE UNIQUE INDEX uq_ajustes_movimiento ON dbo.ajustes_inventario (id_movimiento)
+        WHERE id_movimiento IS NOT NULL;
+END
 GO
 
 -- -------------------------------------------------------------------------------------
 -- 3.3 alertas_inventario - RF-012 (alertas por baja disponibilidad)
 -- Se almacenan permanentemente (D-H4). 'estado' = activa / atendida. Se generan al quedar
--- 'cantidad_disponible <= stock_minimo' tras un movimiento (logica en el backend).
+-- 'stock <= stock_minimo' tras un movimiento (logica en el backend).
 -- -------------------------------------------------------------------------------------
 IF OBJECT_ID(N'dbo.alertas_inventario', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.alertas_inventario (
-        id_alerta       INT IDENTITY(1,1) NOT NULL,
-        id_material     INT               NOT NULL,
-        fecha_generada  DATETIME2(0)      NOT NULL CONSTRAINT df_alertas_fecha DEFAULT SYSDATETIME(),
-        estado          NVARCHAR(20)      NOT NULL CONSTRAINT df_alertas_estado DEFAULT N'activa',
-        mensaje         NVARCHAR(200)     NOT NULL,
+        id_alerta      INT IDENTITY(1,1) NOT NULL,
+        id_material    INT               NOT NULL,
+        fecha_generada DATETIME2(0)      NOT NULL CONSTRAINT df_alertas_fecha DEFAULT SYSDATETIME(),
+        estado         NVARCHAR(20)      NOT NULL CONSTRAINT df_alertas_estado DEFAULT N'activa',
+        mensaje        NVARCHAR(200)     NOT NULL,
         CONSTRAINT pk_alertas PRIMARY KEY (id_alerta),
         CONSTRAINT ck_alertas_estado CHECK (estado IN (N'activa', N'atendida')),
         CONSTRAINT fk_alertas_material FOREIGN KEY (id_material)
@@ -460,7 +477,10 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_alertas_material ON dbo.alertas_inventario (id_material, estado);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_alertas_material' AND object_id = OBJECT_ID(N'dbo.alertas_inventario'))
+BEGIN
+    CREATE INDEX ix_alertas_material ON dbo.alertas_inventario (id_material, estado);
+END
 GO
 
 -- =====================================================================================
@@ -474,14 +494,14 @@ GO
 IF OBJECT_ID(N'dbo.reportes_generados', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.reportes_generados (
-        id_reporte          INT IDENTITY(1,1) NOT NULL,
-        id_usuario          INT               NOT NULL,
-        tipo_reporte        NVARCHAR(50)      NOT NULL,
-        formato             NVARCHAR(10)      NOT NULL,
-        fecha_generacion    DATETIME2(0)      NOT NULL CONSTRAINT df_reportes_fecha DEFAULT SYSDATETIME(),
-        rango_fecha_inicio  DATE              NULL,
-        rango_fecha_fin     DATE              NULL,
-        ruta_archivo        NVARCHAR(300)     NULL,
+        id_reporte         INT IDENTITY(1,1) NOT NULL,
+        id_usuario         INT               NOT NULL,
+        tipo_reporte       NVARCHAR(50)      NOT NULL,
+        formato            NVARCHAR(10)      NOT NULL,
+        fecha_generacion   DATETIME2(0)      NOT NULL CONSTRAINT df_reportes_fecha DEFAULT SYSDATETIME(),
+        rango_fecha_inicio DATE              NULL,
+        rango_fecha_fin    DATE              NULL,
+        ruta_archivo       NVARCHAR(300)     NULL,
         CONSTRAINT pk_reportes PRIMARY KEY (id_reporte),
         CONSTRAINT ck_reportes_formato CHECK (formato IN (N'pdf', N'xlsx')),
         CONSTRAINT fk_reportes_usuario FOREIGN KEY (id_usuario)
@@ -490,7 +510,10 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_reportes_usuario ON dbo.reportes_generados (id_usuario);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_reportes_usuario' AND object_id = OBJECT_ID(N'dbo.reportes_generados'))
+BEGIN
+    CREATE INDEX ix_reportes_usuario ON dbo.reportes_generados (id_usuario);
+END
 GO
 
 -- -------------------------------------------------------------------------------------
@@ -512,17 +535,17 @@ BEGIN
         valores_despues NVARCHAR(MAX)        NULL,
         CONSTRAINT pk_audit PRIMARY KEY (id),
         CONSTRAINT ck_audit_operacion CHECK (operacion IN (N'CREATE', N'UPDATE', N'DELETE', N'MOVEMENT', N'ADJUST')),
-        -- FK opcional (nullable) sobre usuarios, sin CASCADE/NO ACTION explicito
-        -- (default, suficiente). Con soft delete (D-04) el usuario nunca se borra
-        -- fisicamente, por lo que la FK no produce efectos secundarios.
         CONSTRAINT fk_audit_usuario FOREIGN KEY (id_usuario)
             REFERENCES dbo.usuarios (id_usuario)
     );
 END
 GO
 
-CREATE INDEX ix_audit_entidad_registro ON dbo.audit_log (entidad, id_registro);
-CREATE INDEX ix_audit_fecha ON dbo.audit_log (fecha);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_audit_entidad_registro' AND object_id = OBJECT_ID(N'dbo.audit_log'))
+BEGIN
+    CREATE INDEX ix_audit_entidad_registro ON dbo.audit_log (entidad, id_registro);
+    CREATE INDEX ix_audit_fecha ON dbo.audit_log (fecha);
+END
 GO
 
 -- =====================================================================================
@@ -557,5 +580,5 @@ BEGIN
 END
 GO
 
-PRINT N'Base de datos TONUAPP creada correctamente.';
+PRINT N'TONUAPP: Base de datos creada correctamente (17 tablas, indices y datos semilla).';
 GO
