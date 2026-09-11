@@ -82,6 +82,10 @@ tonuapp:
 
 # Logging
 logging:
+  # Escribe a consola Y a archivo (logs/tonuapp.log) para poder ver el codigo de
+  # acceso sin depender de la ventana del proceso. La ruta es configurable.
+  file:
+    name: ${TONUAPP_LOG_FILE:logs/tonuapp.log}
   level:
     root: INFO
     com.tonuapp: DEBUG
