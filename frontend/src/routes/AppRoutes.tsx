@@ -3,6 +3,7 @@
 // "01" es el indicador visual de la posicion del modulo usada en la cabecera de
 // cada pantalla (Materiales = 01).
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../layouts/AppLayout'
 import { LoginPage } from '../pages/LoginPage'
@@ -13,6 +14,7 @@ import { UbicacionesPage } from '../pages/ubicaciones/UbicacionesPage'
 import { MovimientosPage } from '../pages/movimientos/MovimientosPage'
 import { AlertasPage } from '../pages/alertas/AlertasPage'
 import { ReportesPage } from '../pages/reportes/ReportesPage'
+import { UsuariosPage } from '../pages/usuarios/UsuariosPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 
 // Si no hay sesion, al login; si la hay, renderiza la ruta anidada
@@ -22,6 +24,16 @@ function RutaProtegida() {
     return <Navigate to="/login" replace />
   }
   return <Outlet />
+}
+
+// Guard de modulo: solo Administrador (RF-009). Un Cliente que intente la ruta
+// por URL cae aqui en vez de recibir 403 del backend en cada llamada.
+function SoloAdmin({ children }: { children: ReactNode }) {
+  const { usuario } = useAuth()
+  if (usuario?.rol !== 'Administrador') {
+    return <PlaceholderPage titulo="Acceso restringido" />
+  }
+  return children
 }
 
 export function AppRoutes() {
@@ -38,6 +50,14 @@ export function AppRoutes() {
             <Route path="movimientos" element={<MovimientosPage />} />
             <Route path="alertas" element={<AlertasPage />} />
             <Route path="reportes" element={<ReportesPage />} />
+            <Route
+              path="usuarios"
+              element={
+                <SoloAdmin>
+                  <UsuariosPage />
+                </SoloAdmin>
+              }
+            />
             <Route path="*" element={<PlaceholderPage titulo="No encontrada" />} />
           </Route>
         </Route>

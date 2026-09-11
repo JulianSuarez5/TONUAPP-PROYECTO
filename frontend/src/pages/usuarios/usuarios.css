@@ -1,0 +1,95 @@
+/* Modulo Usuarios (RF-006/RF-009). Reutiliza la base de Materiales (materiales.css:
+   botones, cabecera, tabla, modal, formulario) y define solo lo especifico:
+   badges de rol, estado y la identidad (nombre + correo) en la primera columna.
+   Reglas de color vigentes (D-25) intactas: naranja solo CTA, teal solo accentos. */
+@import url('../materiales/materiales.css');
+
+/* ---- Identidad en la primera columna ---- */
+
+.usuarios__identidad {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.usuarios__nombre {
+  font-weight: 600;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.usuarios__correo {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.usuarios__propio {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent-2);
+}
+
+/* ---- Badge de rol (ids de la tabla roles; flexibles RF-006) ---- */
+
+.usuarios__rol {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+
+.usuarios__rol::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-muted-foreground);
+  opacity: 0.6;
+}
+
+/* Administrador (id 1): acento teal del sistema */
+.usuarios__rol--1 {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: rgba(15, 118, 110, 0.07);
+  color: var(--color-accent-2);
+}
+
+.usuarios__rol--1::before {
+  background: var(--color-accent-2);
+  opacity: 1;
+}
+
+/* ---- Badge de estado ---- */
+
+.usuarios__estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-2);
+}
+
+.usuarios__estado::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.usuarios__estado--inactivo {
+  color: var(--color-muted-foreground);
+  opacity: 0.7;
+}

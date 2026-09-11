@@ -48,6 +48,11 @@ export function AppLayout() {
                 Reportes
               </NavLink>
             )}
+            {usuario?.rol === 'Administrador' && (
+              <NavLink className="app__nav-link" to="/usuarios">
+                Usuarios
+              </NavLink>
+            )}
           </nav>
           <div className="app__session">
             <span className="app__correo">{usuario?.correo}</span>
