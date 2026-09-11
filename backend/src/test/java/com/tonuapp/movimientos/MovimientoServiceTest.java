@@ -16,6 +16,7 @@ import com.tonuapp.domain.TipoMovimiento;
 import com.tonuapp.domain.Usuario;
 import com.tonuapp.movimientos.dto.AjusteRequest;
 import com.tonuapp.movimientos.dto.MovimientoRequest;
+import com.tonuapp.movimientos.dto.MovimientoResponse;
 import com.tonuapp.repository.AjusteInventarioRepository;
 import com.tonuapp.repository.LoteRepository;
 import com.tonuapp.repository.MaterialRepository;
@@ -34,6 +35,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -41,7 +43,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 class MovimientoServiceTest {
 
@@ -526,5 +535,81 @@ class MovimientoServiceTest {
                 .isInstanceOf(ApiException.class)
                 .extracting("status", org.assertj.core.api.InstanceOfAssertFactories.type(org.springframework.http.HttpStatus.class))
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("concurrencia: dos salidas simultaneas sobre el mismo material -> una gana y la otra pierde el lock optimista (D-03)")
+    void dosSalidasConcurrentes() throws Exception {
+        AtomicReference<Material> actual = new AtomicReference<>(materialVersionado(10, 1));
+        CyclicBarrier barrera = new CyclicBarrier(2);
+
+        when(materialRepository.findByIdMaterialAndActivoTrue(1)).thenAnswer(inv -> {
+            Material copia = copiaDe(actual.get());
+            barrera.await();
+            return Optional.of(copia);
+        });
+        when(movimientoRepository.save(any(MovimientoInventario.class))).thenAnswer(inv -> {
+            MovimientoInventario mov = inv.getArgument(0);
+            Material m = mov.getMaterial();
+            synchronized (actual) {
+                Material vigente = actual.get();
+                if (!Objects.equals(m.getVersion(), vigente.getVersion())) {
+                    throw new ObjectOptimisticLockingFailureException("Material", m.getIdMaterial());
+                }
+                vigente.setStock(m.getStock());
+                vigente.setVersion(vigente.getVersion() + 1);
+            }
+            mov.setIdMovimiento(7);
+            return mov;
+        });
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            org.springframework.security.core.Authentication auth = new UsernamePasswordAuthenticationToken(
+                    new AuthenticatedUser(1, "admin.prueba@tonusco.test", "Administrador"), null);
+            List<Future<MovimientoResponse>> futuros = List.of(
+                    pool.submit(() -> {
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                        return movimientoService.registrarMovimiento(salida("8"));
+                    }),
+                    pool.submit(() -> {
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                        return movimientoService.registrarMovimiento(salida("8"));
+                    }));
+
+            int exitos = 0;
+            int perdieronLock = 0;
+            for (Future<MovimientoResponse> f : futuros) {
+                try {
+                    f.get();
+                    exitos++;
+                } catch (ExecutionException e) {
+                    assertThat(e.getCause()).isInstanceOf(ObjectOptimisticLockingFailureException.class);
+                    perdieronLock++;
+                }
+            }
+
+            assertThat(exitos).isEqualTo(1);
+            assertThat(perdieronLock).isEqualTo(1);
+            assertThat(actual.get().getStock()).isEqualByComparingTo("2");
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private Material materialVersionado(int stock, int version) {
+        Material m = materialCon(stock);
+        m.setVersion(version);
+        return m;
+    }
+
+    private Material copiaDe(Material orig) {
+        Material m = new Material();
+        m.setIdMaterial(orig.getIdMaterial());
+        m.setNombre(orig.getNombre());
+        m.setStock(orig.getStock());
+        m.setVersion(orig.getVersion());
+        m.setActivo(orig.isActivo());
+        return m;
     }
 }
